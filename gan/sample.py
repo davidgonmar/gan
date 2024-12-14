@@ -6,7 +6,7 @@ from model import MLPGenerator
 
 def get_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_dim", type=int, default=256)
+    parser.add_argument("--input_dim", type=int, default=100)
     parser.add_argument("--hidden_dim", type=int, default=512)
     parser.add_argument("--output_dim", type=int, default=28 * 28 * 1)
     parser.add_argument("--num_samples", type=int, default=4)

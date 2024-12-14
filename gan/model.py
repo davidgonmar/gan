@@ -16,7 +16,7 @@ class MLPGenerator(nn.Module):
     def forward(self, x):
         x = F.leaky_relu(self.fc1(x), negative_slope=0.2)
         x = F.leaky_relu(self.fc2(x), negative_slope=0.2)
-        x = F.leaky_relu(self.fc3(x))
+        x = F.leaky_relu(self.fc3(x), negative_slope=0.2)
         return torch.tanh(self.fc4(x))
 
 
@@ -32,5 +32,5 @@ class MLPDiscriminator(nn.Module):
     def forward(self, x):
         x = F.leaky_relu(self.fc1(x), negative_slope=0.2)
         x = F.leaky_relu(self.fc2(x), negative_slope=0.2)
-        x = F.leaky_relu(self.fc3(x))
+        x = F.leaky_relu(self.fc3(x), negative_slope=0.2)
         return torch.sigmoid(self.fc4(x))

@@ -7,12 +7,12 @@ from tqdm import tqdm
 
 def get_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_dim", type=int, default=256)
+    parser.add_argument("--input_dim", type=int, default=100)
     parser.add_argument("--hidden_dim", type=int, default=512)
     parser.add_argument("--num_epochs", type=int, default=1000)
     parser.add_argument("--batch_size", type=int, default=512)
     parser.add_argument("--lr", type=float, default=0.0002)
-    parser.add_argument("--train_gen_each", type=int, default=1)
+    parser.add_argument("--train_gen_each", type=int, default=2)
     parser.add_argument("--preload", action="store_true", default=False)
     return parser
 
@@ -54,8 +54,13 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
 
     transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Lambda(lambda x: x.view(-1).to(device))]
+        [
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,), (0.5,)),
+            transforms.Lambda(lambda x: x.view(-1).to(device)),
+        ]
     )
+
     mnist_train = datasets.MNIST(
         root="data", train=True, transform=transform, download=True
     )
@@ -66,7 +71,18 @@ if __name__ == "__main__":
     test_dataloader = DataLoader(mnist_test, batch_size=batch_size * 8, shuffle=True)
 
     step = 0
-    criterion = torch.nn.BCELoss()
+
+    # DISCRIMINATOR LOSS
+    def loss_real_disc(disc_outs):
+        return torch.log(disc_outs + 1e-8).mean()  # maximize log(D(x))
+
+    def loss_fake_disc(disc_outs):
+        return torch.log(1 - disc_outs + 1e-8).mean()  # maximize log(1 - D(G(z)))
+
+    # GENERATOR LOSS
+    def loss_gen(disc_outs):
+        return torch.log(disc_outs + 1e-8).mean()  # maximize log(D(G(z)))
+
     for epoch in range(num_epochs):
         generator.train()
         discriminator.train()
@@ -77,26 +93,19 @@ if __name__ == "__main__":
                 # Train discriminator
                 discriminator_optimizer.zero_grad()
                 # real data -> probab = 1
-                loss1 = criterion(
-                    discriminator(real_data),
-                    torch.ones(real_data.size(0), 1).to(device),
-                )
+                loss1 = loss_real_disc(discriminator(real_data))
                 # fake data -> probab = 0
-                loss2 = criterion(
-                    discriminator(generator(noise).detach()),
-                    torch.zeros(real_data.size(0), 1).to(device),
-                )
+                loss2 = loss_fake_disc(discriminator(generator(noise).detach()))
                 loss = loss1 + loss2
+                loss = -loss
                 loss.backward()
                 discriminator_optimizer.step()
             else:
                 # Train generator
                 generator_optimizer.zero_grad()
                 # try to make discriminator think probab = 1 (we are generating real data)
-                loss = criterion(
-                    discriminator(generator(noise)),
-                    torch.ones(real_data.size(0), 1).to(device),
-                )
+                loss = loss_gen(discriminator(generator(noise)))
+                loss = -loss
                 loss.backward()
                 generator_optimizer.step()
             step += 1
@@ -109,18 +118,11 @@ if __name__ == "__main__":
             generator_loss_sum = 0
             for real_data, _ in test_dataloader:
                 noise = torch.randn(real_data.size(0), input_dim).to(device)
-                discriminator_loss_sum += criterion(
-                    discriminator(real_data),
-                    torch.ones(real_data.size(0), 1).to(device),
-                )
-                discriminator_loss_sum += criterion(
-                    discriminator(generator(noise).detach()),
-                    torch.zeros(real_data.size(0), 1).to(device),
-                )
-                generator_loss_sum += criterion(
-                    discriminator(generator(noise)),
-                    torch.ones(real_data.size(0), 1).to(device),
-                )
+                discriminator_loss_sum += loss_real_disc(
+                    discriminator(real_data)
+                ) + loss_fake_disc(discriminator(generator(noise).detach()))
+
+                generator_loss_sum += loss_gen(discriminator(generator(noise)))
 
             generator_loss_sum /= len(test_dataloader)
             discriminator_loss_sum /= len(test_dataloader)
