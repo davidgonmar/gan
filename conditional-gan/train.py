@@ -12,7 +12,7 @@ def get_parser():
     parser.add_argument("--num_epochs", type=int, default=1000)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--lr", type=float, default=0.0002)
-    parser.add_argument("--train_gen_each", type=int, default=1)
+    parser.add_argument("--train_gen_each", type=int, default=5)
     parser.add_argument("--preload", action="store_true", default=False)
     return parser
 
@@ -42,8 +42,10 @@ if __name__ == "__main__":
     # Models and optimizers
     generator = MLPGenerator(input_dim, hidden_dim, output_dim).to(device)
     discriminator = MLPDiscriminator(output_dim, hidden_dim, 1).to(device)
-    generator_optimizer = optim.Adam(generator.parameters(), lr=lr)
-    discriminator_optimizer = optim.Adam(discriminator.parameters(), lr=lr)
+    generator_optimizer = optim.Adam(generator.parameters(), lr=lr, betas=(0.5, 0.999))
+    discriminator_optimizer = optim.Adam(
+        discriminator.parameters(), lr=lr, betas=(0.5, 0.999)
+    )
 
     if args.preload:
         generator.load_state_dict(torch.load("generator.pth"))
@@ -53,7 +55,9 @@ if __name__ == "__main__":
     from torchvision import datasets, transforms
     from torch.utils.data import DataLoader
 
-    transform = transforms.Compose([transforms.ToTensor()])
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
+    )
     mnist_train = datasets.MNIST(
         root="data", train=True, transform=transform, download=True
     )

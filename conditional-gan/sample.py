@@ -37,7 +37,7 @@ def plot_samples(samples, labels, num_samples):
     samples = samples.view(-1, 28, 28).cpu().numpy()
     fig, axs = plt.subplots(1, num_samples, figsize=(10, 2.5))
     for i in range(num_samples):
-        axs[i].imshow(samples[i], cmap="gray")
+        axs[i].imshow(samples[i], cmap="gray", vmin=-1, vmax=1)
         axs[i].set_title(f"Label: {labels[i]}")
         axs[i].axis("off")
     plt.show()
